@@ -5,12 +5,10 @@ from torchvision import models, transforms
 import numpy as np
 import os
 
-# Параметры
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_classes = 2
 class_names = ["breach", "kayo"]
 
-# Загрузка модели
 model = models.resnet18(pretrained=False)
 model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
 print(os.path.exists("model.pth"))
@@ -20,7 +18,6 @@ model = model.to(device)
 model.eval()
 
 
-# Трансформация для изображения
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -29,26 +26,20 @@ transform = transforms.Compose([
 
 def detect_motion(frame1, frame2, threshold=30, min_area=500):
 
-    # Преобразование кадров в оттенки серого
     gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
 
-    # Вычисление абсолютной разницы между кадрами
     diff = cv2.absdiff(gray1, gray2)
 
-    # Применение порогового значения для создания маски
     _, thresh = cv2.threshold(diff, threshold, 255, cv2.THRESH_BINARY)
 
-    # Применение морфологических операций
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Структурный элемент
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)  # Закрытие (удаление мелких дыр)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)) 
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)  
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel) 
     
-    # Поиск контуров (области с движением)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours
 
-# Классификация объекта
 def classify_object(frame, bbox):
     x, y, w, h = bbox
     object_img = frame[y-w:y+h, x-w:x+w]
@@ -88,7 +79,6 @@ def process_video(input_path, output_path):
             prev_frame = frame
             continue
 
-        # Обнаружение движения
         contours = detect_motion(prev_frame, frame)
         prev_frame = frame.copy()
 
@@ -99,12 +89,10 @@ def process_video(input_path, output_path):
             x, y, w, h = cv2.boundingRect(contour)
             class_label, class_prob = classify_object(frame, (x, y, w, h))
 
-            # Отрисовка bbox и метки
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
             cv2.putText(frame, f"{class_label} ({class_prob:.2f})", (x, y-10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        # Запись результатов
         if out is None:
             try:
                 h, w, _ = frame.shape
@@ -119,7 +107,6 @@ def process_video(input_path, output_path):
         if out is not None:
             out.write(frame)
 
-        # Отображение (опционально)
         cv2.imshow("Tracking", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
